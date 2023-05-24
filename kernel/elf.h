@@ -55,9 +55,40 @@ typedef struct elf_ctx_t {
   elf_header ehdr;
 } elf_ctx;
 
+typedef struct elf_shdr_t {
+  uint32 name; //存储关于sh str ndx值所在节的地址的偏移量
+  uint32 type;  
+  uint64 flags;  
+  uint64 addr; /*the first byte of the section.*/  
+  uint64 offset;/*此成员的取值给出节区的第一个字节与文件头之间的偏移*/  
+  uint64 size;  
+  uint32 link;  
+  uint32 info;  
+  uint64 addralign;  
+  uint64 entsize;
+}elf_shdr;
+
+typedef struct elf_sym_t {  
+  uint32 st_name; // symbol name, the index of string table  
+  uint64 st_value; // symbol value, the virtual address  
+  uint32 st_size;  
+  uint8 st_info;  
+  uint8 st_other;  
+  uint16 st_shndx; // 符号相关节的节索引  
+} elf_sym;
+
 elf_status elf_init(elf_ctx *ctx, void *info);
 elf_status elf_load(elf_ctx *ctx);
 
 void load_bincode_from_host_elf(process *p);
+
+elf_status elf_load_symbol(elf_ctx *ctx, char namelist[], elf_sym sym[], int* symnum);
+
+void get_function_name(process *p, char namelist[], elf_sym sym[], int* symnum);
+
+
+
+// char name_list[1024];
+// elf_sym sym_[1024];
 
 #endif
