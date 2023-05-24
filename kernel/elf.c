@@ -194,13 +194,20 @@ endop:;
     //     sprint("%p %d %d\n", p->line[i].addr, p->line[i].line, p->line[i].file);
 }
 
+
 //
 // load the elf segments to memory regions as we are in Bare mode in lab1
 //
 elf_status elf_load(elf_ctx *ctx) {
   // elf_prog_header structure is defined in kernel/elf.h
   elf_prog_header ph_addr;
+
+  elf_sect_header sh, stmp;
   int i, off;
+  uint64 bound = 0;
+  char tmp[512];
+  if (elf_fpread(ctx, (void *)&sh, sizeof(sh), ctx->ehdr.shoff+ctx->ehdr.shstrndx*sizeof(elf_sect_header)) != sizeof(sh)) return EL_EIO;
+  elf_fpread(ctx, (void *)tmp, sizeof(tmp), sh.offset);
 
   // traverse the elf program segment headers
   for (i = 0, off = ctx->ehdr.phoff; i < ctx->ehdr.phnum; i++, off += sizeof(ph_addr)) {
@@ -217,8 +224,24 @@ elf_status elf_load(elf_ctx *ctx) {
     // actual loading
     if (elf_fpread(ctx, dest, ph_addr.memsz, ph_addr.off) != ph_addr.memsz)
       return EL_EIO;
+    bound = bound > ph_addr.vaddr+ph_addr.memsz ? bound : ph_addr.vaddr+ph_addr.memsz;
+    //要放在最后面
   }
 
+  char debugline[1024];
+  char termname[64];
+  uint32 len=0;
+  for (i = 0, off = ctx->ehdr.shoff; i < ctx->ehdr.shnum; ++i, off += sizeof(elf_sect_header)) {
+    if (elf_fpread(ctx, (void *)&stmp, sizeof(stmp), off) != sizeof(stmp)) return EL_EIO;
+    elf_fpread(ctx, (void *)termname, 64, sh.offset + stmp.name);
+    if (strcmp(termname, ".debug_line") == 0) {  // symbol table
+      // if (elf_fpread(ctx, debugline, stmp.size, stmp.offset) != stmp.size)
+      if (elf_fpread(ctx, (void *)bound, stmp.size, stmp.offset) != stmp.size)
+        return EL_EIO;
+      // len += sh.size;
+      make_addr_line(ctx, (char *)bound, stmp.size);
+    }
+  }
   return EL_OK;
 }
 
