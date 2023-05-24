@@ -40,6 +40,7 @@ int printu(const char* s, ...) {
   size_t n = res < sizeof(out) ? res : sizeof(out);
 
   // make a syscall to implement the required functionality.
+  // do_syscall(SYS_user_print, (uint64)buf, n, 0, 0, 0, 0, 0);
   return do_user_call(SYS_user_print, (uint64)buf, n, 0, 0, 0, 0, 0);
 }
 
