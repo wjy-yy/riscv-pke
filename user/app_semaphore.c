@@ -14,12 +14,14 @@ int main(void) {
     if (pid == 0) {
         pid = fork();
         for (int i = 0; i < 10; i++) {
+            // printu("ci:%d\n",i);
             sem_P(child_sem[pid == 0]);
             printu("Child%d print %d\n", pid == 0, i);
             if (pid != 0) sem_V(child_sem[1]); else sem_V(main_sem);
         }
     } else {
         for (int i = 0; i < 10; i++) {
+            // printu("pi:%d\n",i);
             sem_P(main_sem);
             printu("Parent print %d\n", i);
             sem_V(child_sem[0]);

@@ -96,6 +96,53 @@ ssize_t sys_user_yield() {
   return 0;
 }
 
+typedef struct semaphore_t {
+  int value;
+  process *head;
+}semaphore;
+semaphore sem[512];
+int semcnt=0;
+ssize_t sys_user_sem_new(int num) {
+  sem[semcnt].value=num;
+  sem[semcnt].head=NULL;
+  return semcnt++;
+}
+
+ssize_t sys_user_sem_P(int semnum) {
+  // sprint("semp:%d\n",semnum);
+  sem[semnum].value--;
+  // sprint("sempv:%d\n",sem[semnum].value);
+  if(sem[semnum].value<0)
+  {
+    if(!sem[semnum].head)
+      sem[semnum].head=current;
+    else
+    {
+      process *p=sem[semnum].head;
+      while(p->queue_next!=NULL)
+        p=p->queue_next;
+      p->queue_next=current;
+    }
+    current->queue_next=NULL;
+    current->status=BLOCKED;
+    schedule();
+  }
+  return 0;
+}
+
+ssize_t sys_user_sem_V(int semnum) {
+  sem[semnum].value++;
+  if(sem[semnum].head!=NULL)
+  {
+    // sem[semnum].head->status=READY;
+    insert_to_ready_queue(sem[semnum].head);
+    // schedule();
+    sem[semnum].head=sem[semnum].head->queue_next;
+    // --sem[semnum].value;
+  }
+  return 0;
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
@@ -115,6 +162,12 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_sem_new:
+      return sys_user_sem_new(a1);
+    case SYS_user_sem_P:
+      return sys_user_sem_P(a1);
+    case SYS_user_sem_V:
+      return sys_user_sem_V(a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }
