@@ -96,11 +96,45 @@ ssize_t sys_user_yield() {
   return 0;
 }
 
+extern process procs[];
+
+ssize_t sys_user_wait(ssize_t pid) {
+  sprint("wait %l\n",pid);
+  if(pid==-1)
+  {
+    while(1)
+    {
+      for(int i=0;i<NPROC;++i)
+      {
+        if(procs[i].parent==current && procs[i].status == ZOMBIE)
+        {
+          procs[i].status = FREE;
+          return procs[i].pid;
+        }
+      }
+      sys_user_yield();
+    }
+    
+  }
+  else if(pid>0&&pid<NPROC&&procs[pid].parent==current)
+  {
+    while(procs[pid].status!=ZOMBIE)
+    {
+      sys_user_yield();
+    }
+    procs[pid].status = FREE;
+    return pid;
+  }
+  else
+    return -1;
+}
+
 //
 // [a0]: the syscall number; [a1] ... [a7]: arguments to the syscalls.
 // returns the code of success, (e.g., 0 means success, fail for otherwise)
 //
 long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, long a7) {
+  // sprint("syscall:%ld\n",a0);
   switch (a0) {
     case SYS_user_print:
       return sys_user_print((const char*)a1, a2);
@@ -115,6 +149,8 @@ long do_syscall(long a0, long a1, long a2, long a3, long a4, long a5, long a6, l
       return sys_user_fork();
     case SYS_user_yield:
       return sys_user_yield();
+    case SYS_user_wait:
+      return sys_user_wait(a1);
     default:
       panic("Unknown syscall %ld \n", a0);
   }

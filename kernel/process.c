@@ -179,7 +179,6 @@ int do_fork( process* parent)
 {
   sprint( "will fork a child from parent %d.\n", parent->pid );
   process* child = alloc_process();
-
   for( int i=0; i<parent->total_mapped_region; i++ ){
     // browse parent's vm space, and copy its trapframe and data segments,
     // map its code segment.
@@ -232,14 +231,30 @@ int do_fork( process* parent)
         // segment of parent process.
         // DO NOT COPY THE PHYSICAL PAGES, JUST MAP THEM.
         // panic( "You need to implement the code segment mapping of child in lab3_1.\n" );
-        map_pages(child->pagetable, parent->mapped_info[i].va, parent->mapped_info[i].npages*4096, 
-                lookup_pa(parent->pagetable, parent->mapped_info[i].va), prot_to_type(PROT_READ|PROT_EXEC, 1));
+        for(int j=0;j<parent->mapped_info[i].npages;++j)
+          user_vm_map(child->pagetable, parent->mapped_info[i].va + j*4096, 4096, 
+                lookup_pa(parent->pagetable, parent->mapped_info[i].va + j*4096), prot_to_type(PROT_READ|PROT_EXEC, 1));
         
         // after mapping, register the vm region (do not delete codes below!)
         child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
         child->mapped_info[child->total_mapped_region].npages =
           parent->mapped_info[i].npages;
         child->mapped_info[child->total_mapped_region].seg_type = CODE_SEGMENT;
+        child->total_mapped_region++;
+        break;
+      case DATA_SEGMENT:
+        for(int j=0;j<parent->mapped_info[i].npages;++j)
+        {
+          void *child_page = alloc_page();
+          uint64 parent_page = lookup_pa(parent->pagetable, parent->mapped_info[i].va);
+          memcpy(child_page, (void*)parent_page, 4096);
+          user_vm_map(child->pagetable, parent->mapped_info[i].va + j*4096, 4096, (uint64)child_page, prot_to_type(PROT_READ|PROT_WRITE, 1));
+        }
+        // after mapping, register the vm region (do not delete codes below!)
+        child->mapped_info[child->total_mapped_region].va = parent->mapped_info[i].va;
+        child->mapped_info[child->total_mapped_region].npages =
+          parent->mapped_info[i].npages;
+        child->mapped_info[child->total_mapped_region].seg_type = DATA_SEGMENT;
         child->total_mapped_region++;
         break;
     }
